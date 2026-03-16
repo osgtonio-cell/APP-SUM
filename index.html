@@ -587,12 +587,30 @@ async function filtrar() {
 async function filtrarPorDistrito(ubigeo) {
   setLoading(true, "Cargando suministros...");
   try {
-    const puntos = await (await fetch(`${DATA_DIR}${ubigeo}.json`)).json();
+    let puntos = [];
+
+    // Intentar índice de paginación primero
+    const idxRes = await fetch(`${DATA_DIR}${ubigeo}_index.json`);
+    if (idxRes.ok) {
+      const idx = await idxRes.json();
+      setStatus(`Cargando ${idx.paginas} partes...`);
+      for (let i = 1; i <= idx.paginas; i++) {
+        const parte = await (await fetch(`${DATA_DIR}${ubigeo}_${i}.json`)).json();
+        puntos = puntos.concat(parte);
+        setStatus(`Cargando parte ${i}/${idx.paginas}...`);
+      }
+    } else {
+      // Archivo único normal
+      puntos = await (await fetch(`${DATA_DIR}${ubigeo}.json`)).json();
+    }
+
     puntosActuales = puntos;
     renderizarPuntos(puntos);
-    if (capaPuntos && puntos.length > 0) map.fitBounds(capaPuntos.getBounds(), { padding:[40,40] });
+    if (capaPuntos && puntos.length > 0) map.fitBounds(capaPuntos.getBounds(), {padding:[40,40]});
     setLoading(false, `${puntos.length.toLocaleString()} suministros.`);
-  } catch(e) { setLoading(false, "⚠ No hay datos para este distrito."); }
+  } catch(e) {
+    setLoading(false, "⚠ No hay datos para este distrito.");
+  }
 }
 
 async function filtrarPorArea() {
